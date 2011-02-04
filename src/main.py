@@ -18,7 +18,7 @@ class Corpus:
     def pprint(self):
         
         for sent in self.sents:
-            sent.pprint()
+            print sent.tree, "\n\n"
 
 class Sent:
     
@@ -39,16 +39,10 @@ class Sent:
         self.pivot = False
         
         # weak verbs list
-        self.weak_verbs = ['do', 'be', 'is', 'are', 'have' 'had', 'has', 'was', 'get', 'gets', 'getting', 'did', "'re", 'were', 'makes', "'m"]
+        self.weak_verbs = ['do', 'be', 'is', "'s", 'are', 'have' 'had', 'has', 'was', 'do', 'did', "'re", 'were', "'m"]
         
         #set pivot
         self._set_pivot(self.tree)
-        
-    def pprint(self):
-        
-        '''print wrapped tree object'''
-        
-        print self.tree, "\n\n"
             
     def _set_pivot(self, chunk, node_name = 'TREE', path = []):
         
@@ -61,7 +55,7 @@ class Sent:
             if isinstance(small_chunk, str):
                 
                 # attempt to set strong pivot
-                if node_name.startswith("V"):
+                if node_name.startswith("V") or node_name == 'BES':
                     self.last_verb = chunk
                     self.last_verb_path = path
                     self._set_strong_pivot(small_chunk, node_name)
@@ -80,12 +74,9 @@ class Sent:
         '''set strong pivot'''
         
         if self.weak_verbs.count(word) > 0: return False
-        self.last_verb = nltk.tree.Tree('(PIVOT_STRONG %s)' % self.last_verb)
+        self.last_verb = nltk.tree.Tree('PIVOT_STRONG', [self.last_verb])
         self.pivot = self.last_verb
-        
-        # this is ugly!!!!! how do i access leaf with list of indices????????
-        pathString = ''.join(["[%i]" % index for index in self.last_verb_path])
-        exec("self.tree%s = self.last_verb" % pathString)
+        self.tree[tuple(self.last_verb_path)] = self.last_verb
         return True
     
     def _set_weak_pivot(self):
@@ -93,12 +84,9 @@ class Sent:
         '''set weak pivot'''
         
         if not self.last_verb: return False
-        self.last_verb = nltk.tree.Tree('(PIVOT_WEAK %s)' % self.last_verb)
+        self.last_verb = nltk.tree.Tree('PIVOT_WEAK', [self.last_verb])
         self.pivot = self.last_verb
-        
-        # sooooooooooooooooooooooooooooooo ugly
-        pathString = ''.join(["[%i]" % index for index in self.last_verb_path])
-        exec("self.tree%s = self.last_verb" % pathString)
+        self.tree[tuple(self.last_verb_path)] = self.last_verb
         return True
             
 # build corpus with pivots, print
