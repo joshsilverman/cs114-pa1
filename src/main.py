@@ -1,25 +1,92 @@
-import nltk
+import nltk    
+
+class Corpus:
     
-verbs = ['raised', 'figure', 'be', 'doing', 'is', 'talking', 'see', 'decided', 'are', 'have', 'go', 'seen', 'seem', 'dress', 'thought', 'guess', 'thinking', 'make', 'give', 'had', 'combine', 'has', 'was', 'do', 'play', 'get', 'hang', 'grew', 'lives', "'m", 'trying', 'gets', 'figured', 'like', 'getting', 'did', 'try', "'re", 'were', 'hear', 'went', 'makes', 'think', 'mean']
-weak_verbs = ['be', 'is', 'are', 'have' 'had', 'has', 'was', 'do', 'get', 'gets', 'getting', 'did', "'re", 'were', 'went', 'makes', "'m"]
+    '''wrapper class for list of sentence trees'''
     
-def pivot_on_first_strong(tree):
-    traverse_tree(tree, tree, is_pivot)
+    def __init__(self, path):
+        self.sents = []
         
-def traverse_tree(tree, chunk, leaf_function, node_name = 'TREE', path = [0]):
-    for i, small_chunk in enumerate(chunk):
-        if isinstance(small_chunk, str):
-            leaf_function(small_chunk, node_name, path)
-        else:
-            child_path = path + [i]
-            traverse_tree(tree, small_chunk, leaf_function, small_chunk.node, child_path)
+        # set sents
+        corpus_text_handle = open(path, 'r')        
+        corpus_text = corpus_text_handle.read()
+        corpus_lines = corpus_text.split('\n')
+        for line in corpus_lines:
+            tree = nltk.tree.Tree(line)
+            self.sents.append(Sent(tree))
+
+class Sent:
+    
+    '''wrapper class for nltk.tree.Tree's for sentences'''
+    
+    def __init__(self, tree):
+        
+        '''constructor'''
+        
+        self.tree = tree
+        
+        # members used for traversal - could be put in a utility class along with traverse mamber
+        self.last_verb = False
+        self.last_verb_path = False
+        
+        self.pivot = False
+        
+        self.weak_verbs = ['do', 'be', 'is', 'are', 'have' 'had', 'has', 'was', 'get', 'gets', 'getting', 'did', "'re", 'were', 'makes', "'m"]
+        
+        self._set_pivot(self.tree)
+        print self.tree
+        
             
-def is_pivot(word, pos, path):    
-    if not pos.startswith("V"): return False
-    elif weak_verbs.count(word) > 0: return False
-    print '"%s", ' % word,
+    def _set_pivot(self, chunk, node_name = 'TREE', path = []):
         
-# read corpus, parse sentences, add pivots
-reader = nltk.corpus.reader.BracketParseCorpusReader('../data', 'corpus.txt', detect_blocks='sexpr')
-tree = reader.parsed_sents()
-tree = pivot_on_first_strong(tree)
+        '''post order traversal of tree'''
+        
+        # iterate through children, looking for verb strings
+        for i, small_chunk in enumerate(chunk):
+            
+            # check if word and if verb
+            if isinstance(small_chunk, str):
+                
+                # attempt to set strong pivot
+                if node_name.startswith("V"):
+                    self.last_verb = chunk
+                    self.last_verb_path = path
+                    self._set_strong_pivot(small_chunk, node_name)
+                
+            else:
+                child_path = path + [i]
+                self._set_pivot(small_chunk, small_chunk.node, child_path)
+        
+        # if strong pivot not found
+        if path == [] and self.pivot == False:
+            self._set_weak_pivot()
+        
+
+    def _set_strong_pivot(self, word, pos):
+        
+        '''set strong pivot'''
+        
+        if self.weak_verbs.count(word) > 0: return False
+        self.last_verb = nltk.tree.Tree('(PIVOT_STRONG %s)' % self.last_verb)
+        self.pivot = self.last_verb
+        
+        # this is ugly!!! how do i access leaf with list of indices????????
+        pathString = ''.join(["[%i]" % index for index in self.last_verb_path])
+        exec("self.tree%s = self.last_verb" % pathString)
+        return True
+    
+    def _set_weak_pivot(self):
+        
+        '''set weak pivot'''
+        
+        if not self.last_verb: return False
+        self.last_verb = nltk.tree.Tree('(PIVOT_WEAK %s)' % self.last_verb)
+        self.pivot = self.last_verb
+        
+        # this is ugly!!! how do i access leaf with list of indices????????
+        pathString = ''.join(["[%i]" % index for index in self.last_verb_path])
+        exec("self.tree%s = self.last_verb" % pathString)
+        return True
+            
+# build corpus with pivots
+Corpus('../data/corpus.txt')
