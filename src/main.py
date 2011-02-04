@@ -15,6 +15,11 @@ class Corpus:
             tree = nltk.tree.Tree(line)
             self.sents.append(Sent(tree))
 
+    def pprint(self):
+        
+        for sent in self.sents:
+            sent.pprint()
+
 class Sent:
     
     '''wrapper class for nltk.tree.Tree's for sentences'''
@@ -23,19 +28,27 @@ class Sent:
         
         '''constructor'''
         
+        # wrapped obj
         self.tree = tree
         
         # members used for traversal - could be put in a utility class along with traverse mamber
         self.last_verb = False
         self.last_verb_path = False
         
+        # pivot
         self.pivot = False
         
+        # weak verbs list
         self.weak_verbs = ['do', 'be', 'is', 'are', 'have' 'had', 'has', 'was', 'get', 'gets', 'getting', 'did', "'re", 'were', 'makes', "'m"]
         
+        #set pivot
         self._set_pivot(self.tree)
-        print self.tree
         
+    def pprint(self):
+        
+        '''print wrapped tree object'''
+        
+        print self.tree, "\n\n"
             
     def _set_pivot(self, chunk, node_name = 'TREE', path = []):
         
@@ -70,7 +83,7 @@ class Sent:
         self.last_verb = nltk.tree.Tree('(PIVOT_STRONG %s)' % self.last_verb)
         self.pivot = self.last_verb
         
-        # this is ugly!!! how do i access leaf with list of indices????????
+        # this is ugly!!!!! how do i access leaf with list of indices????????
         pathString = ''.join(["[%i]" % index for index in self.last_verb_path])
         exec("self.tree%s = self.last_verb" % pathString)
         return True
@@ -83,10 +96,11 @@ class Sent:
         self.last_verb = nltk.tree.Tree('(PIVOT_WEAK %s)' % self.last_verb)
         self.pivot = self.last_verb
         
-        # this is ugly!!! how do i access leaf with list of indices????????
+        # sooooooooooooooooooooooooooooooo ugly
         pathString = ''.join(["[%i]" % index for index in self.last_verb_path])
         exec("self.tree%s = self.last_verb" % pathString)
         return True
             
-# build corpus with pivots
-Corpus('../data/corpus.txt')
+# build corpus with pivots, print
+corpus = Corpus('../data/corpus.txt')
+corpus.pprint()
