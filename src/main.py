@@ -1,52 +1,45 @@
 import nltk    
 
-class Corpus:
+class PivotedCorpus:
     
-    '''wrapper class for list of sentence trees'''
+    '''wrapper class for PivotedSent'''
     
-    def __init__(self, path):
+    def __init__(self, corpus):
+        self.corpus = corpus
         self.sents = []
         
         # set sents
-        corpus_text_handle = open(path, 'r')        
-        corpus_text = corpus_text_handle.read()
-        corpus_lines = corpus_text.split('\n')
-        for line in corpus_lines:
-            tree = nltk.tree.Tree(line)
-            self.sents.append(Sent(tree))
+        sent_trees = self.corpus.parsed_sents()
+        for sent_tree in sent_trees:
+            self.sents.append(PivotedSent(sent_tree))
 
     def pprint(self):
-        
         for sent in self.sents:
             print sent.tree, "\n\n"
 
-class Sent:
+class PivotedSent:
     
     '''wrapper class for nltk.tree.Tree's for sentences'''
     
+    # weak verbs list
+    weak_verbs = ['like', 'guess', 'thought', 'thinking', 'get', 'think', 'do', 'be', 'is', "'s", 'are', 'have', 'had', 'has', 'was', 'do', 'did', "'re", 'were', "'m", "seems", "doing"]
+    
     def __init__(self, tree):
         
-        '''constructor'''
-        
-        # wrapped obj
+        # wrapped obj, pivot
         self.tree = tree
+        self.pivot = False
         
         # members used for traversal - could be put in a utility class along with traverse mamber
         self.last_verb = False
         self.last_verb_path = False
-        
-        # pivot
-        self.pivot = False
-        
-        # weak verbs list
-        self.weak_verbs = ['do', 'be', 'is', "'s", 'are', 'have' 'had', 'has', 'was', 'do', 'did', "'re", 'were', "'m"]
         
         #set pivot
         self._set_pivot(self.tree)
             
     def _set_pivot(self, chunk, node_name = 'TREE', path = []):
         
-        '''post order traversal of tree'''
+        '''preorder traversal of tree'''
         
         # iterate through children, looking for verb strings
         for i, small_chunk in enumerate(chunk):
@@ -59,6 +52,7 @@ class Sent:
                     self.last_verb = chunk
                     self.last_verb_path = path
                     self._set_strong_pivot(small_chunk, node_name)
+                    if self.pivot: break
                 
             else:
                 child_path = path + [i]
@@ -71,24 +65,23 @@ class Sent:
 
     def _set_strong_pivot(self, word, pos):
         
-        '''set strong pivot'''
-        
-        if self.weak_verbs.count(word) > 0: return False
-        self.last_verb = nltk.tree.Tree('PIVOT_STRONG', [self.last_verb])
+        # check if pivot already set and if weak
+        if self.pivot: return False
+        if PivotedSent.weak_verbs.count(word) > 0: return False
+        self.last_verb = nltk.tree.Tree('PIVOT_STRONG_BEFORE', [self.last_verb])
         self.pivot = self.last_verb
         self.tree[tuple(self.last_verb_path)] = self.last_verb
         return True
     
     def _set_weak_pivot(self):
         
-        '''set weak pivot'''
-        
         if not self.last_verb: return False
-        self.last_verb = nltk.tree.Tree('PIVOT_WEAK', [self.last_verb])
+        self.last_verb = nltk.tree.Tree('PIVOT_WEAK_AFTER', [self.last_verb])
         self.pivot = self.last_verb
         self.tree[tuple(self.last_verb_path)] = self.last_verb
         return True
             
 # build corpus with pivots, print
-corpus = Corpus('../data/corpus.txt')
-corpus.pprint()
+reader = nltk.corpus.reader.BracketParseCorpusReader('../data', 'corpus.txt', detect_blocks='sexpr')
+pivoted_corpus = PivotedCorpus(reader)
+pivoted_corpus.pprint()
